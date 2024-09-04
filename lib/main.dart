@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 
 void main() {
   runApp(MyApp());
@@ -9,56 +10,60 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: CameraScreen(),
+      home: CameraStatusScreen(),
     );
   }
 }
 
-class CameraScreen extends StatefulWidget {
+class CameraStatusScreen extends StatefulWidget {
   @override
-  _CameraScreenState createState() => _CameraScreenState();
+  _CameraStatusScreenState createState() => _CameraStatusScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
-  static const platform = MethodChannel('usb_camera_channel');
-  String _cameraStatus = 'Unknown';
+class _CameraStatusScreenState extends State<CameraStatusScreen> {
+  static const platform = MethodChannel('com.example.usb_camera_app/usb');
+  String _cameraStatus = "Checking...";
+  VideoPlayerController? _controller;
 
   @override
   void initState() {
     super.initState();
-    _checkPermissions();
-  }
-
-  Future<void> _checkPermissions() async {
-    try {
-      final bool hasPermission = await platform.invokeMethod('checkPermissions');
-      if (hasPermission) {
+    _checkCameraStatus();
+    platform.setMethodCallHandler((call) async {
+      if (call.method == 'updateCameraStatus') {
         setState(() {
-          _cameraStatus = 'Permission Granted';
-        });
-        _connectUsbCamera();
-      } else {
-        setState(() {
-          _cameraStatus = 'Permission Denied';
+          _cameraStatus = call.arguments ? "Camera is connected" : "No camera connected";
         });
       }
+    });
+  }
+
+  Future<void> _checkCameraStatus() async {
+    try {
+      final bool isConnected = await platform.invokeMethod('checkCameraStatus');
+      setState(() {
+        _cameraStatus = isConnected ? "Camera is connected" : "No camera connected";
+      });
     } on PlatformException catch (e) {
       setState(() {
-        _cameraStatus = "Failed to get permission: '${e.message}'.";
+        _cameraStatus = "Failed to get camera status: '${e.message}'.";
       });
     }
   }
 
-  Future<void> _connectUsbCamera() async {
+  Future<void> _startVideoStream() async {
     try {
-      final String result = await platform.invokeMethod('connectUsbCamera');
-      setState(() {
-        _cameraStatus = result;
-      });
+      await platform.invokeMethod('startVideoStream');
     } on PlatformException catch (e) {
-      setState(() {
-        _cameraStatus = "Failed to connect to camera: '${e.message}'.";
-      });
+      print("Failed to start video stream: '${e.message}'.");
+    }
+  }
+
+  Future<void> _stopVideoStream() async {
+    try {
+      await platform.invokeMethod('stopVideoStream');
+    } on PlatformException catch (e) {
+      print("Failed to stop video stream: '${e.message}'.");
     }
   }
 
@@ -69,7 +74,25 @@ class _CameraScreenState extends State<CameraScreen> {
         title: Text('USB Camera App'),
       ),
       body: Center(
-        child: Text('Camera Status: $_cameraStatus'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              _cameraStatus,
+              style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _startVideoStream,
+              child: Text('Start Video Stream'),
+            ),
+            ElevatedButton(
+              onPressed: _stopVideoStream,
+              child: Text('Stop Video Stream'),
+            ),
+            // Aquí se podría añadir el VideoPlayer para mostrar el video
+          ],
+        ),
       ),
     );
   }
