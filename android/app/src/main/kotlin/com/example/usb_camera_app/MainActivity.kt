@@ -42,8 +42,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isCameraDevice(device: UsbDevice): Boolean {
-        // Aquí puedes adaptar la lógica para identificar si el dispositivo es una cámara.
-        // Esto es un ejemplo simple que verifica si el nombre del producto contiene "Camera".
+        // Lógica para identificar si el dispositivo es una cámara
         return device.productName?.contains("Camera", ignoreCase = true) == true
     }
 
